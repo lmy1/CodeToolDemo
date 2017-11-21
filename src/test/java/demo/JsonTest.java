@@ -137,7 +137,14 @@ public class JsonTest {
 		return 0;
 
 	} 
-
+	
+	
+	@Test
+	public void test8() throws Exception {
+		SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		Date parse = dateFormat.parse("1995-08-27 11:11:11");
+		System.out.println(parse);
+	}
 }
 
 

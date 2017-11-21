@@ -44,8 +44,22 @@ public class PersonService {
 	 */
 	@Transactional
 	public Response addPerson(Person person) {
-		personDao.save(person);
-		return null;
+		Response response = new Response();
+		Person result = null;
+		try {
+			result = personDao.saveAndFlush(person);
+		} catch (Exception e) {
+			// 手动回滚
+			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+			e.printStackTrace();
+			response.setStatus(1);
+			response.setMsg("添加失败");
+			return response;
+		}
+		response.setStatus(0);
+		response.setMsg("添加成功");
+		response.setData(result);
+		return response;
 	}
 
 	/**
@@ -53,20 +67,21 @@ public class PersonService {
 	 * 
 	 * @return
 	 */
+	@Transactional
 	public Response updatePerson(Person person) {
-		personDao.saveAndFlush(person);
-		return null;
-	}
-
-	/**
-	 * 根据ID查找
-	 * 
-	 * @return
-	 */
-	public Response findPersonById(Long id) {
-		Person person = personDao.findOne(id);
 		Response response = new Response();
-		response.setData(person);
+		try {
+			personDao.saveAndFlush(person);
+		} catch (Exception e) {
+			// 手动回滚
+			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+			e.printStackTrace();
+			response.setStatus(1);
+			response.setMsg("修改失败");
+			return response;
+		}
+		response.setStatus(0);
+		response.setMsg("修改成功");
 		return response;
 	}
 
@@ -78,20 +93,23 @@ public class PersonService {
 	 */
 	public Response deletePerson4Optimistic(Long[] ids) {
 		List<Person> list = new ArrayList<>();
+		Response response = new Response();
 		for (Long id : ids) {
 			Person person = new Person();
 			person.setId(id);
 			try {
-				// TODO: 测试删除
-				// if (id == 3) {
-				// throw new RuntimeException("报错了");
-				// }
 				personDao.delete(id);
 			} catch (Exception e) {
 				list.add(person);
 			}
 		}
-		Response response = new Response();
+		if (list.size() == 0) {
+			response.setStatus(0);
+			response.setMsg("删除成功");
+			return response;
+		}
+		response.setStatus(1);
+		response.setMsg("部分删除失败");
 		response.setData(list);
 		return response;
 	}
@@ -112,24 +130,36 @@ public class PersonService {
 			list.add(person);
 		}
 		try {
-			// TODO: 测试删除
-			// int x = 1;
 			personDao.deleteInBatch(list);
-			// if (x == 1) {
-			// throw new RuntimeException();
-			// }
 
-		} catch (RuntimeException e) {
-			response.setStatus(0);
+		} catch (Exception e) {
 			// 手动回滚
 			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+			response.setStatus(1);
+			response.setMsg("全部删除失败");
+			return response;
 		}
+		response.setStatus(0);
+		response.setMsg("删除成功");
+		return response;
+	}
+
+	/**
+	 * 根据ID查找
+	 * 
+	 * @return
+	 */
+	public Response findPersonById(Long id) {
+		Response response = new Response();
+		Person person = personDao.findOne(id);
+		response.setStatus(0);
+		response.setMsg("查询成功");
+		response.setData(person);
 		return response;
 	}
 
 	/**
 	 * 根据条件查询
-	 * 
 	 * 
 	 * @param queryModels
 	 * @return
@@ -185,13 +215,18 @@ public class PersonService {
 							ps.add(predicate);
 						} else if ("between".equals(sign) && StringUtils.isNotBlank(qvalue)) {
 							String[] data = qvalue.split("/");
+							if (data.length != 2) {
+								response.setStatus(1);
+								response.setMsg("传入数据有误");
+								return null;
+							}
 							Predicate predicate = null;
 							if (Date.class == fieldType) {
 								// 如果传入是日期类型的区间
 								Date start = null;
 								Date end = null;
-								start = StringUtil.StringToDate(qvalue, response);
-								end = StringUtil.StringToDate(qvalue, response);
+								start = StringUtil.StringToDate(data[0], response);
+								end = StringUtil.StringToDate(data[1], response);
 								predicate = cb.between(root.get(qname).as(Date.class), start, end);
 							} else if (fieldType == double.class || fieldType == Double.class) {
 								predicate = cb.between(root.get(qname).as(Double.class), Double.parseDouble(data[0]),
@@ -219,8 +254,8 @@ public class PersonService {
 							Predicate predicate = null;
 							if (fieldType == Date.class) {
 								Date date = StringUtil.StringToDate(qvalue, response);
-								predicate = cb.greaterThan(root.get(qname).as(Date.class),date);
-							}else {
+								predicate = cb.greaterThan(root.get(qname).as(Date.class), date);
+							} else {
 								predicate = cb.gt((Expression<? extends Number>) root.get(qname).as(fieldType),
 										Double.parseDouble(qvalue));
 							}
@@ -230,8 +265,8 @@ public class PersonService {
 							Predicate predicate = null;
 							if (fieldType == Date.class) {
 								Date date = StringUtil.StringToDate(qvalue, response);
-								predicate = cb.lessThan(root.get(qname).as(Date.class),date);
-							}else {
+								predicate = cb.lessThan(root.get(qname).as(Date.class), date);
+							} else {
 								predicate = cb.lt((Expression<? extends Number>) root.get(qname).as(fieldType),
 										Double.parseDouble(qvalue));
 							}
@@ -241,8 +276,8 @@ public class PersonService {
 							Predicate predicate = null;
 							if (fieldType == Date.class) {
 								Date date = StringUtil.StringToDate(qvalue, response);
-								predicate = cb.greaterThanOrEqualTo(root.get(qname).as(Date.class),date);
-							}else {
+								predicate = cb.greaterThanOrEqualTo(root.get(qname).as(Date.class), date);
+							} else {
 								predicate = cb.ge((Expression<? extends Number>) root.get(qname).as(fieldType),
 										Double.parseDouble(qvalue));
 							}
@@ -252,8 +287,8 @@ public class PersonService {
 							Predicate predicate = null;
 							if (fieldType == Date.class) {
 								Date date = StringUtil.StringToDate(qvalue, response);
-								predicate = cb.lessThanOrEqualTo(root.get(qname).as(Date.class),date);
-							}else {
+								predicate = cb.lessThanOrEqualTo(root.get(qname).as(Date.class), date);
+							} else {
 								predicate = cb.le((Expression<? extends Number>) root.get(qname).as(fieldType),
 										Double.parseDouble(qvalue));
 							}
@@ -275,9 +310,7 @@ public class PersonService {
 					return cb.and(ps.toArray(p));
 				}
 			}
-
 		};
-
 		// 创建分页查询对象
 		Pageable pageRequest = new PageRequest(queryModels.getPage() - 1, queryModels.getRows());
 		Page<Person> page = personDao.findAll(specification, pageRequest);
@@ -286,14 +319,15 @@ public class PersonService {
 		}
 		response.setData(page);
 		response.setStatus(0);
-		response.setMsg("success");
+		response.setMsg("查询成功");
 		return response;
 	}
 
 	/**
 	 * 修改单个字段值
 	 * 
-	 * @param updateModel 封装查询的条件
+	 * @param updateModel
+	 *            封装查询的条件
 	 * @return
 	 */
 	@Transactional
@@ -348,10 +382,14 @@ public class PersonService {
 	/**
 	 * 根据条件执行方法
 	 * 
-	 * @param fieldValue	操作的方法的参数(参数数量为1)
-	 * @param person	要执行方法的对象
-	 * @param fieldType	要执行方法的参数类型(参数数量为1)
-	 * @param method 	要执行的方法
+	 * @param fieldValue
+	 *            操作的方法的参数(参数数量为1)
+	 * @param person
+	 *            要执行方法的对象
+	 * @param fieldType
+	 *            要执行方法的参数类型(参数数量为1)
+	 * @param method
+	 *            要执行的方法
 	 * @return
 	 * @throws Exception
 	 */

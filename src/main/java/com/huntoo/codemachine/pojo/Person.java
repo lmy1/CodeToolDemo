@@ -7,6 +7,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 @Entity
 public class Person implements Serializable{
@@ -21,6 +22,8 @@ public class Person implements Serializable{
 	private Long id;
 	private String name;
 	private Integer age;
+//	@JsonFormat(timezone = "GMTd+8", pattern ="yyyy-MM-dd" )
+	@JsonFormat(timezone = "GMT+8", pattern = "yyyy-MM-dd HH:mm:ss")
 	private Date birthday;
 	private Byte delflag = 0;
 	
